@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two Ships</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+            color: #000;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .logo svg {
+            width: 50px;
+            height: 50px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .upload-zone {
+            border: 2px dashed #000;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 20px 0;
+            background: #fafafa;
+        }
+
+        .upload-zone:hover {
+            background: #f0f0f0;
+            border-color: #333;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #666;
+        }
+
+        .share-link {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.85em;
+            border: 1px solid #ddd;
+        }
+
+        .copy-btn {
+            padding: 10px 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #000;
+        }
+
+        .photo-count {
+            color: #000;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .match-item {
+            background: #fafafa;
+            border-left: 3px solid #000;
+            padding: 25px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .match-location {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .match-date {
+            color: #666;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+
+        .match-distance {
+            color: #666;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .show-photos-link {
+            color: #000;
+            text-decoration: underline;
+            font-size: 0.9em;
+            cursor: pointer;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .show-photos-link:hover {
+            color: #333;
+        }
+
+        .photo-gallery {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+
+        .photo-gallery.visible {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .photo-gallery img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .photo-gallery img:hover {
+            transform: scale(1.05);
+        }
+
+        .no-matches {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .map-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #000;
+            text-decoration: underline;
+            font-size: 0.9em;
+        }
+
+        .map-link:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>            <div class="logo">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Left ship (higher) -->
+                    <rect x="22" y="25" width="16" height="45" fill="#000" rx="1"/>
+                    
+                    <!-- Right ship (lower) -->
+                    <rect x="62" y="40" width="16" height="45" fill="#000" rx="1"/>
+                </svg>
+            </div>
+            <span>Two Ships</span></h1>
+            <p class="subtitle">Discover the moments you shared before you ever met</p>
+            
+            <div id="step1" style="display: block;">
+                <h2>Step 1: Upload Your Photos</h2>
+                <p style="margin: 15px 0; color: #666;">Select photos from your library. We'll extract location data to find matching moments.</p>
+                
+                <div class="upload-zone" onclick="document.getElementById('photoInput').click()">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
+                    <div>Click to select photos</div>
+                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">Your data stays in your browser - nothing is uploaded to servers</div>
+                </div>
+                
+                <input type="file" id="photoInput" accept="image/*" multiple>
+                
+                <div class="photo-count" id="photoCount"></div>
+                
+                <button id="generateLinkBtn" style="display: none;" onclick="generateShareLink()">
+                    Generate Share Link
+                </button>
+            </div>
+
+            <div id="step2" style="display: none;">
+                <h2>Step 2: Share This Link</h2>
+                <p style="margin: 15px 0; color: #666;">Send this link to the person you want to compare locations with:</p>
+                
+                <div class="share-link" id="shareLink"></div>
+                
+                <button class="copy-btn" onclick="copyLink()">Copy Link</button>
+                
+                <p style="margin-top: 20px; color: #999; font-size: 0.9em;">
+                    ℹ️ Your photos are never shared - only location data and dates are compared.
+                </p>
+            </div>
+
+            <div id="step3" style="display: none;">
+                <h2>You've Been Invited!</h2>
+                <p style="margin: 15px 0; color: #666;">Upload your photos to see if you've crossed paths before.</p>
+                
+                <div class="upload-zone" onclick="document.getElementById('photoInput2').click()">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
+                    <div>Click to select your photos</div>
+                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">Your photos stay private - they're never shared</div>
+                </div>
+                
+                <input type="file" id="photoInput2" accept="image/*" multiple>
+                
+                <div class="photo-count" id="photoCount2"></div>
+                
+                <button id="compareBtn" style="display: none;" onclick="compareLocations()">
+                    Find Matching Moments
+                </button>
+            </div>
+
+            <div id="results" style="display: none;">
+                <h2>✨ Matching Moments Found!</h2>
+                <p style="margin: 15px 0; color: #666;">You were both in these places at the same time:</p>
+                <div id="matchesContainer"></div>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                Processing photos...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userAData = [];
+        let userBData = [];
+        let currentUserPhotos = [];
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedData = urlParams.get('data');
+            
+            if (sharedData) {
+                try {
+                    userAData = JSON.parse(atob(sharedData));
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step3').style.display = 'block';
+                } catch (e) {
+                    alert('Invalid share link');
+                }
+            }
+        };
+
+        document.getElementById('photoInput').addEventListener('change', handlePhotos);
+        document.getElementById('photoInput2').addEventListener('change', handlePhotosB);
+
+        function handlePhotos(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            document.getElementById('loading').style.display = 'block';
+            processPhotos(files, userAData, () => {
+                currentUserPhotos = userAData;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('photoCount').textContent = `${userAData.length} photos with location data found`;
+                if (userAData.length > 0) {
+                    document.getElementById('generateLinkBtn').style.display = 'block';
+                }
+            });
+        }
+
+        function handlePhotosB(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            document.getElementById('loading').style.display = 'block';
+            processPhotos(files, userBData, () => {
+                currentUserPhotos = userBData;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('photoCount2').textContent = `${userBData.length} photos with location data found`;
+                if (userBData.length > 0) {
+                    document.getElementById('compareBtn').style.display = 'block';
+                }
+            });
+        }
+
+        function processPhotos(files, dataArray, callback) {
+            let processed = 0;
+            
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    
+                    img.onload = function() {
+                        EXIF.getData(img, function() {
+                            const lat = EXIF.getTag(this, 'GPSLatitude');
+                            const lon = EXIF.getTag(this, 'GPSLongitude');
+                            const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+                            const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+                            const dateTime = EXIF.getTag(this, 'DateTimeOriginal');
+                            
+                            if (lat && lon && dateTime) {
+                                const latitude = convertDMSToDD(lat, latRef);
+                                const longitude = convertDMSToDD(lon, lonRef);
+                                
+                                dataArray.push({
+                                    lat: latitude,
+                                    lon: longitude,
+                                    date: dateTime,
+                                    thumbnail: e.target.result,
+                                    fileName: file.name
+                                });
+                            }
+                            
+                            processed++;
+                            if (processed === files.length) {
+                                callback();
+                            }
+                        });
+                    };
+                };
+                
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function convertDMSToDD(dms, ref) {
+            const degrees = dms[0];
+            const minutes = dms[1];
+            const seconds = dms[2];
+            
+            let dd = degrees + minutes/60 + seconds/3600;
+            
+            if (ref === 'S' || ref === 'W') {
+                dd = dd * -1;
+            }
+            
+            return dd;
+        }
+
+        function generateShareLink() {
+            const encoded = btoa(JSON.stringify(userAData.map(d => ({
+                lat: d.lat,
+                lon: d.lon,
+                date: d.date
+            }))));
+            
+            const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+            
+            document.getElementById('shareLink').textContent = shareUrl;
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+        }
+
+        function copyLink() {
+            const link = document.getElementById('shareLink').textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                alert('Link copied to clipboard!');
+            });
+        }
+
+        function compareLocations() {
+            const matches = [];
+            const DISTANCE_THRESHOLD = 1000;
+            const METERS_PER_FOOT = 0.3048;
+            const DISTANCE_THRESHOLD_METERS = DISTANCE_THRESHOLD * METERS_PER_FOOT;
+            
+            userBData.forEach(photoB => {
+                userAData.forEach(photoA => {
+                    const dateA = photoA.date.split(' ')[0];
+                    const dateB = photoB.date.split(' ')[0];
+                    
+                    if (dateA === dateB) {
+                        const distance = getDistanceFromLatLonInMeters(
+                            photoA.lat, photoA.lon,
+                            photoB.lat, photoB.lon
+                        );
+                        
+                        if (distance <= DISTANCE_THRESHOLD_METERS) {
+                            const existingMatch = matches.find(m => m.date === dateA && 
+                                Math.abs(m.lat - photoB.lat) < 0.001 && 
+                                Math.abs(m.lon - photoB.lon) < 0.001);
+                            
+                            if (!existingMatch) {
+                                matches.push({
+                                    lat: photoB.lat,
+                                    lon: photoB.lon,
+                                    distance: distance,
+                                    date: dateA,
+                                    userPhotos: [photoB]
+                                });
+                            } else {
+                                existingMatch.userPhotos.push(photoB);
+                            }
+                        }
+                    }
+                });
+            });
+            
+            displayMatches(matches);
+        }
+
+        function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const d = R * c;
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+
+        async function getLocationName(lat, lon) {
+            // This is a placeholder - in production you'd use a geocoding API
+            return `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+        }
+
+        function displayMatches(matches) {
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            
+            const container = document.getElementById('matchesContainer');
+            
+            if (matches.length === 0) {
+                container.innerHTML = '<div class="no-matches">No matching moments found. Try uploading more photos or adjust your search!</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            matches.forEach((match, index) => {
+                const distanceFeet = Math.round(match.distance / 0.3048);
+                const formattedDate = formatDate(match.date);
+                const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
+                
+                const matchElement = document.createElement('div');
+                matchElement.className = 'match-item';
+                matchElement.innerHTML = `
+                    <div class="match-location">📍 You were both at the same location</div>
+                    <div class="match-date">${formattedDate}</div>
+                    <div class="match-distance">Within ${distanceFeet} feet of each other</div>
+                    <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
+                    <br>
+                    <a class="show-photos-link" onclick="togglePhotos(${index})">Show me my photos from that day</a>
+                    <div class="photo-gallery" id="gallery-${index}"></div>
+                `;
+                container.appendChild(matchElement);
+                
+                const gallery = document.getElementById(`gallery-${index}`);
+                match.userPhotos.forEach(photo => {
+                    const img = document.createElement('img');
+                    img.src = photo.thumbnail;
+                    img.alt = 'Your photo from this location';
+                    gallery.appendChild(img);
+                });
+            });
+        }
+
+        function togglePhotos(index) {
+            const gallery = document.getElementById(`gallery-${index}`);
+            gallery.classList.toggle('visible');
+        }
+
+        function formatDate(dateStr) {
+            const parts = dateStr.split(' ')[0].split(':');
+            const date = new Date(parts[0], parts[1] - 1, parts[2]);
+            return date.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+    </script>
+</body>
+</html>
