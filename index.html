@@ -508,19 +508,64 @@
         }
 
         async function getLocationName(lat, lon) {
-            // This is a placeholder - in production you'd use a geocoding API
-            return `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`);
+                const data = await response.json();
+                
+                // Try to get the most specific location name
+                if (data.address) {
+                    // Prioritize: venue/building > neighborhood > city
+                    const name = data.address.tourism || 
+                                data.address.amenity || 
+                                data.address.building ||
+                                data.address.shop ||
+                                data.address.neighbourhood ||
+                                data.address.suburb ||
+                                data.address.city ||
+                                data.address.town ||
+                                data.address.village;
+                    
+                    if (name) {
+                        // Add city/state for context if we have a specific venue
+                        if (data.address.tourism || data.address.amenity) {
+                            const city = data.address.city || data.address.town;
+                            return city ? `${name}, ${city}` : name;
+                        }
+                        return name;
+                    }
+                }
+                
+                // Fallback to display name
+                return data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : 'the same location';
+            } catch (error) {
+                console.error('Error fetching location name:', error);
+                return 'the same location';
+            }
         }
 
-        function displayMatches(matches) {
+        async function displayMatches(matches) {
             document.getElementById('step3').style.display = 'none';
             document.getElementById('results').style.display = 'block';
             
             const container = document.getElementById('matchesContainer');
             
+            // Update heading with count
+            const resultsHeading = document.querySelector('#results h2');
             if (matches.length === 0) {
-                container.innerHTML = '<div class="no-matches">No matching moments found. Try uploading more photos or adjust your search!</div>';
+                resultsHeading.textContent = 'No matching moments found :(';
+                container.innerHTML = '<div class="no-matches">Try uploading more photos or adjust your search!</div>';
                 return;
+            } else if (matches.length === 1) {
+                resultsHeading.textContent = '✨ 1 matching moment found!';
+            } else {
+                resultsHeading.textContent = `✨ ${matches.length} matching moments found!`;
+            }
+            
+            container.innerHTML = '<div class="loading">Loading location names...</div>';
+            
+            // Fetch location names for all matches
+            for (let match of matches) {
+                match.locationName = await getLocationName(match.lat, match.lon);
             }
             
             container.innerHTML = '';
@@ -533,7 +578,7 @@
                 const matchElement = document.createElement('div');
                 matchElement.className = 'match-item';
                 matchElement.innerHTML = `
-                    <div class="match-location">📍 You were both at the same location</div>
+                    <div class="match-location">📍 You were both at ${match.locationName}</div>
                     <div class="match-date">${formattedDate}</div>
                     <div class="match-distance">Within ${distanceFeet} feet of each other</div>
                     <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
@@ -551,6 +596,16 @@
                     gallery.appendChild(img);
                 });
             });
+            
+            // Add share results button
+            const shareButton = document.createElement('button');
+            shareButton.textContent = 'Share results with your friend';
+            shareButton.style.marginTop = '30px';
+            shareButton.onclick = shareResults;
+            container.appendChild(shareButton);
+            
+            // Store matches for sharing
+            window.currentMatches = matches;
         }
 
         function togglePhotos(index) {
@@ -566,6 +621,76 @@
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
+            });
+        }
+
+        async function shareResults() {
+            if (!window.currentMatches) return;
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            // Encode match results
+            const resultsData = window.currentMatches.map(m => ({
+                locationName: m.locationName,
+                date: m.date,
+                distance: m.distance,
+                lat: m.lat,
+                lon: m.lon
+            }));
+            
+            const encoded = btoa(JSON.stringify(resultsData));
+            const longUrl = `${window.location.origin}${window.location.pathname}?results=${encoded}`;
+            
+            try {
+                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                const shortUrl = await response.text();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                // Copy to clipboard and alert
+                navigator.clipboard.writeText(shortUrl).then(() => {
+                    alert(`Results link copied to clipboard!\n\nShare this with your friend:\n${shortUrl}`);
+                });
+            } catch (error) {
+                console.error('Error creating share link:', error);
+                document.getElementById('loading').style.display = 'none';
+                alert('Error creating share link. Please try again.');
+            }
+        }
+
+        function displaySharedResults(matches) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            
+            const container = document.getElementById('matchesContainer');
+            
+            // Update heading with count
+            const resultsHeading = document.querySelector('#results h2');
+            if (matches.length === 1) {
+                resultsHeading.textContent = '✨ 1 matching moment found!';
+            } else {
+                resultsHeading.textContent = `✨ ${matches.length} matching moments found!`;
+            }
+            
+            const subtitle = document.querySelector('#results p');
+            subtitle.textContent = 'Your friend shared these matching moments with you:';
+            
+            container.innerHTML = '';
+            
+            matches.forEach((match) => {
+                const distanceFeet = Math.round(match.distance / 0.3048);
+                const formattedDate = formatDate(match.date);
+                const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
+                
+                const matchElement = document.createElement('div');
+                matchElement.className = 'match-item';
+                matchElement.innerHTML = `
+                    <div class="match-location">📍 You were both at ${match.locationName}</div>
+                    <div class="match-date">${formattedDate}</div>
+                    <div class="match-distance">Within ${distanceFeet} feet of each other</div>
+                    <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
+                `;
+                container.appendChild(matchElement);
             });
         }
     </script>
