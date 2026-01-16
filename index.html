@@ -412,16 +412,32 @@
             return dd;
         }
 
-        function generateShareLink() {
+        async function generateShareLink() {
+            // Show loading state
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('generateLinkBtn').disabled = true;
+            
             const encoded = btoa(JSON.stringify(userAData.map(d => ({
                 lat: d.lat,
                 lon: d.lon,
                 date: d.date
             }))));
             
-            const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+            const longUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
             
-            document.getElementById('shareLink').textContent = shareUrl;
+            try {
+                // Call TinyURL API to shorten the link
+                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                const shortUrl = await response.text();
+                
+                document.getElementById('shareLink').textContent = shortUrl;
+            } catch (error) {
+                console.error('Error shortening URL:', error);
+                // Fallback to long URL if shortening fails
+                document.getElementById('shareLink').textContent = longUrl;
+            }
+            
+            document.getElementById('loading').style.display = 'none';
             document.getElementById('step1').style.display = 'none';
             document.getElementById('step2').style.display = 'block';
         }
