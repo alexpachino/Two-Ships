@@ -41,6 +41,11 @@
             display: flex;
             align-items: center;
             gap: 15px;
+            cursor: pointer;
+        }
+
+        h1:hover {
+            opacity: 0.7;
         }
 
         .logo {
@@ -426,8 +431,8 @@
             const longUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
             
             try {
-                // Call TinyURL API to shorten the link
-                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                // Call is.gd API to shorten the link
+                const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
                 const shortUrl = await response.text();
                 
                 document.getElementById('shareLink').textContent = shortUrl;
@@ -644,7 +649,7 @@
             const longUrl = `${window.location.origin}${window.location.pathname}?results=${encoded}`;
             
             try {
-                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
                 const shortUrl = await response.text();
                 
                 // Create share link display
@@ -668,7 +673,7 @@
             }
         }
 
-        function copyResultsLink(url) {
+                function copyResultsLink(url) {
             navigator.clipboard.writeText(url).then(() => {
                 alert('Link copied to clipboard!');
             }).catch(() => {
@@ -676,6 +681,12 @@
                 alert('Please manually copy the link above');
             });
         }
+
+        function goHome() {
+            // Remove URL parameters and reload to home state
+            window.location.href = window.location.origin + window.location.pathname;
+        }
+    
 
         function displaySharedResults(matches) {
             document.getElementById('step1').style.display = 'none';
