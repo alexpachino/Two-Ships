@@ -40,6 +40,7 @@
             color: #000;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 15px;
             cursor: pointer;
         }
@@ -69,6 +70,15 @@
             color: #666;
             margin-bottom: 30px;
             font-size: 1.1em;
+            text-align: center;
+        }
+
+        .home-only {
+            display: block;
+        }
+
+        .hide-tagline .home-only {
+            display: none;
         }
 
         .upload-zone {
@@ -227,6 +237,43 @@
         .map-link:hover {
             color: #333;
         }
+
+        .photo-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .photo-modal.active {
+            display: flex;
+        }
+
+        .photo-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .photo-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .photo-modal-close:hover {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -305,6 +352,12 @@
                 Processing photos...
             </div>
         </div>
+
+        <!-- Photo modal for enlarging images -->
+        <div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
+            <span class="photo-modal-close">&times;</span>
+            <img id="modalImage" src="" alt="Full size photo">
+        </div>
     </div>
 
     <script>
@@ -330,11 +383,16 @@
         document.getElementById('photoInput').addEventListener('change', handlePhotos);
         document.getElementById('photoInput2').addEventListener('change', handlePhotosB);
 
+        // Add video support to file inputs
+        document.getElementById('photoInput').setAttribute('accept', 'image/*,video/*');
+        document.getElementById('photoInput2').setAttribute('accept', 'image/*,video/*');
+
         function handlePhotos(e) {
             const files = e.target.files;
             if (files.length === 0) return;
 
             document.getElementById('loading').style.display = 'block';
+            document.querySelector('.card').classList.add('hide-tagline');
             processPhotos(files, userAData, () => {
                 currentUserPhotos = userAData;
                 document.getElementById('loading').style.display = 'none';
@@ -350,6 +408,7 @@
             if (files.length === 0) return;
 
             document.getElementById('loading').style.display = 'block';
+            document.querySelector('.card').classList.add('hide-tagline');
             processPhotos(files, userBData, () => {
                 currentUserPhotos = userBData;
                 document.getElementById('loading').style.display = 'none';
@@ -367,11 +426,13 @@
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {
-                    const img = new Image();
-                    img.src = e.target.result;
+                    // Handle both images and videos
+                    const isVideo = file.type.startsWith('video/');
+                    const element = isVideo ? document.createElement('video') : new Image();
+                    element.src = e.target.result;
                     
-                    img.onload = function() {
-                        EXIF.getData(img, function() {
+                    const handleLoad = function() {
+                        EXIF.getData(element, function() {
                             const lat = EXIF.getTag(this, 'GPSLatitude');
                             const lon = EXIF.getTag(this, 'GPSLongitude');
                             const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
@@ -387,7 +448,8 @@
                                     lon: longitude,
                                     date: dateTime,
                                     thumbnail: e.target.result,
-                                    fileName: file.name
+                                    fileName: file.name,
+                                    isVideo: isVideo
                                 });
                             }
                             
@@ -397,6 +459,12 @@
                             }
                         });
                     };
+                    
+                    if (isVideo) {
+                        element.addEventListener('loadedmetadata', handleLoad);
+                    } else {
+                        element.onload = handleLoad;
+                    }
                 };
                 
                 reader.readAsDataURL(file);
@@ -556,6 +624,7 @@
         async function displayMatches(matches) {
             document.getElementById('step3').style.display = 'none';
             document.getElementById('results').style.display = 'block';
+            document.querySelector('.card').classList.add('hide-tagline');
             
             const container = document.getElementById('matchesContainer');
             
@@ -564,52 +633,47 @@
             if (matches.length === 0) {
                 resultsHeading.textContent = 'No matching moments found :(';
                 container.innerHTML = '<div class="no-matches">Try uploading more photos or adjust your search!</div>';
-                return;
             } else if (matches.length === 1) {
                 resultsHeading.textContent = '✨ 1 matching moment found!';
             } else {
                 resultsHeading.textContent = `✨ ${matches.length} matching moments found!`;
             }
             
-            container.innerHTML = '<div class="loading">Loading location names...</div>';
-            
-            // Fetch location names for all matches
-            for (let match of matches) {
-                match.locationName = await getLocationName(match.lat, match.lon);
+            if (matches.length > 0) {
+                container.innerHTML = '';
+                
+                matches.forEach((match, index) => {
+                    const distanceFeet = Math.round(match.distance / 0.3048);
+                    const formattedDate = formatDate(match.date);
+                    const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
+                    
+                    const matchElement = document.createElement('div');
+                    matchElement.className = 'match-item';
+                    matchElement.innerHTML = `
+                        <div class="match-location">📍 You were both at a location</div>
+                        <div class="match-date">${formattedDate}</div>
+                        <div class="match-distance">Within ${distanceFeet} feet of each other</div>
+                        <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
+                        <br>
+                        <a class="show-photos-link" onclick="togglePhotos(${index})">Show me my photos from that day</a>
+                        <div class="photo-gallery" id="gallery-${index}"></div>
+                    `;
+                    container.appendChild(matchElement);
+                    
+                    const gallery = document.getElementById(`gallery-${index}`);
+                    match.userPhotos.forEach(photo => {
+                        const img = document.createElement('img');
+                        img.src = photo.thumbnail;
+                        img.alt = 'Your photo from this location';
+                        img.onclick = () => openPhotoModal(photo.thumbnail);
+                        gallery.appendChild(img);
+                    });
+                });
             }
             
-            container.innerHTML = '';
-            
-            matches.forEach((match, index) => {
-                const distanceFeet = Math.round(match.distance / 0.3048);
-                const formattedDate = formatDate(match.date);
-                const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
-                
-                const matchElement = document.createElement('div');
-                matchElement.className = 'match-item';
-                matchElement.innerHTML = `
-                    <div class="match-location">📍 You were both at ${match.locationName}</div>
-                    <div class="match-date">${formattedDate}</div>
-                    <div class="match-distance">Within ${distanceFeet} feet of each other</div>
-                    <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
-                    <br>
-                    <a class="show-photos-link" onclick="togglePhotos(${index})">Show me my photos from that day</a>
-                    <div class="photo-gallery" id="gallery-${index}"></div>
-                `;
-                container.appendChild(matchElement);
-                
-                const gallery = document.getElementById(`gallery-${index}`);
-                match.userPhotos.forEach(photo => {
-                    const img = document.createElement('img');
-                    img.src = photo.thumbnail;
-                    img.alt = 'Your photo from this location';
-                    gallery.appendChild(img);
-                });
-            });
-            
-            // Add share results button
+            // Add share results button (even if no matches)
             const shareButton = document.createElement('button');
-            shareButton.textContent = 'Share results with your friend';
+            shareButton.textContent = 'Share these results with your friend';
             shareButton.style.marginTop = '30px';
             shareButton.onclick = shareResults;
             container.appendChild(shareButton);
@@ -701,12 +765,15 @@
         function displaySharedResults(matches) {
             document.getElementById('step1').style.display = 'none';
             document.getElementById('results').style.display = 'block';
+            document.querySelector('.card').classList.add('hide-tagline');
             
             const container = document.getElementById('matchesContainer');
             
             // Update heading with count
             const resultsHeading = document.querySelector('#results h2');
-            if (matches.length === 1) {
+            if (matches.length === 0) {
+                resultsHeading.textContent = 'No matching moments found :(';
+            } else if (matches.length === 1) {
                 resultsHeading.textContent = '✨ 1 matching moment found!';
             } else {
                 resultsHeading.textContent = `✨ ${matches.length} matching moments found!`;
@@ -717,21 +784,34 @@
             
             container.innerHTML = '';
             
-            matches.forEach((match) => {
-                const distanceFeet = Math.round(match.distance / 0.3048);
-                const formattedDate = formatDate(match.date);
-                const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
-                
-                const matchElement = document.createElement('div');
-                matchElement.className = 'match-item';
-                matchElement.innerHTML = `
-                    <div class="match-location">📍 You were both at ${match.locationName}</div>
-                    <div class="match-date">${formattedDate}</div>
-                    <div class="match-distance">Within ${distanceFeet} feet of each other</div>
-                    <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
-                `;
-                container.appendChild(matchElement);
-            });
+            if (matches.length === 0) {
+                container.innerHTML = '<div class="no-matches">No matching moments were found.</div>';
+            } else {
+                matches.forEach((match) => {
+                    const distanceFeet = Math.round(match.distance / 0.3048);
+                    const formattedDate = formatDate(match.date);
+                    const mapsUrl = `https://maps.apple.com/?q=${match.lat},${match.lon}`;
+                    
+                    const matchElement = document.createElement('div');
+                    matchElement.className = 'match-item';
+                    matchElement.innerHTML = `
+                        <div class="match-location">📍 You were both at a location</div>
+                        <div class="match-date">${formattedDate}</div>
+                        <div class="match-distance">Within ${distanceFeet} feet of each other</div>
+                        <a href="${mapsUrl}" target="_blank" class="map-link">View location on Apple Maps →</a>
+                    `;
+                    container.appendChild(matchElement);
+                });
+            }
+        }
+
+        function openPhotoModal(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('photoModal').classList.add('active');
+        }
+
+        function closePhotoModal() {
+            document.getElementById('photoModal').classList.remove('active');
         }
     </script>
 </body>
