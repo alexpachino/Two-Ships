@@ -627,7 +627,9 @@
         async function shareResults() {
             if (!window.currentMatches) return;
             
-            document.getElementById('loading').style.display = 'block';
+            const shareButton = event.target;
+            shareButton.disabled = true;
+            shareButton.textContent = 'Generating link...';
             
             // Encode match results
             const resultsData = window.currentMatches.map(m => ({
@@ -645,17 +647,34 @@
                 const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
                 const shortUrl = await response.text();
                 
-                document.getElementById('loading').style.display = 'none';
+                // Create share link display
+                const container = document.getElementById('matchesContainer');
+                const shareLinkDiv = document.createElement('div');
+                shareLinkDiv.style.marginTop = '20px';
+                shareLinkDiv.innerHTML = `
+                    <h3 style="margin-bottom: 10px;">Share this link with your friend:</h3>
+                    <div class="share-link">${shortUrl}</div>
+                    <button class="copy-btn" onclick="copyResultsLink('${shortUrl}')">Copy Link</button>
+                `;
                 
-                // Copy to clipboard and alert
-                navigator.clipboard.writeText(shortUrl).then(() => {
-                    alert(`Results link copied to clipboard!\n\nShare this with your friend:\n${shortUrl}`);
-                });
+                // Replace the share button with the link display
+                shareButton.replaceWith(shareLinkDiv);
+                
             } catch (error) {
                 console.error('Error creating share link:', error);
-                document.getElementById('loading').style.display = 'none';
+                shareButton.disabled = false;
+                shareButton.textContent = 'Share results with your friend';
                 alert('Error creating share link. Please try again.');
             }
+        }
+
+        function copyResultsLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                // Fallback for browsers that don't support clipboard API
+                alert('Please manually copy the link above');
+            });
         }
 
         function displaySharedResults(matches) {
