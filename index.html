@@ -293,29 +293,30 @@
 <body>
     <div class="container">
         <div class="card">
-            <h1>            <div class="logo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Left ship (higher) -->
-                    <rect x="22" y="25" width="16" height="45" fill="#000" rx="1"/>
-                    
-                    <!-- Right ship (lower) -->
-                    <rect x="62" y="40" width="16" height="45" fill="#000" rx="1"/>
-                </svg>
-            </div>
-            <span>Two Ships</span></h1>
-            <p class="subtitle">Discover the moments you shared before you ever met</p>
+            <h1 onclick="goHome()">
+                <div class="logo">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Left ship (higher) -->
+                        <rect x="22" y="25" width="16" height="45" fill="#000" rx="1"/>
+                        
+                        <!-- Right ship (lower) -->
+                        <rect x="62" y="40" width="16" height="45" fill="#000" rx="1"/>
+                    </svg>
+                </div>
+                <span>Two Ships</span>
+            </h1>
+            <p class="subtitle home-only">Discover the moments you shared before you ever met</p>
             
             <div id="step1" style="display: block;">
                 <h2>Upload Your Photos</h2>
-
-<p style="margin: 15px 0; color: #666;">Select photos from your library. We'll extract location data to find matching moments, then generate a link to share with a friend.</p>
+                <p style="margin: 15px 0; color: #666;">Select photos from your library. We'll extract location data to find matching moments, then generate a link to share with a friend.</p>
                 
                 <div class="upload-zone" onclick="document.getElementById('photoInput').click()">
                     <div class="upload-text">Click to select photos</div>
                     <div class="upload-subtext">Your data stays private, on your device</div>
                 </div>
                 
-                <input type="file" id="photoInput" accept="image/*" multiple>
+                <input type="file" id="photoInput" accept="image/*,video/*" multiple>
                 
                 <div class="photo-count" id="photoCount"></div>
                 
@@ -325,7 +326,7 @@
             </div>
 
             <div id="step2" style="display: none;">
-                <h2>Step 2: Share This Link</h2>
+                <h2>Share This Link</h2>
                 <p style="margin: 15px 0; color: #666;">Send this link to the person you want to compare locations with:</p>
                 
                 <div class="share-link" id="shareLink"></div>
@@ -346,7 +347,7 @@
                     <div class="upload-subtext">Your photos stay private</div>
                 </div>
                 
-                <input type="file" id="photoInput2" accept="image/*" multiple>
+                <input type="file" id="photoInput2" accept="image/*,video/*" multiple>
                 
                 <div class="photo-count" id="photoCount2"></div>
                 
@@ -381,13 +382,28 @@
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sharedData = urlParams.get('data');
+            const resultsData = urlParams.get('results');
             
-            if (sharedData) {
+            if (resultsData) {
+                // This is Person A viewing shared results
                 try {
-                    userAData = JSON.parse(atob(sharedData));
+                    const matches = JSON.parse(atob(decodeURIComponent(resultsData)));
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'none';
+                    document.getElementById('step3').style.display = 'none';
+                    displaySharedResults(matches);
+                } catch (e) {
+                    console.error('Error parsing results:', e);
+                    alert('Invalid results link');
+                }
+            } else if (sharedData) {
+                // This is person B receiving the link
+                try {
+                    userAData = JSON.parse(atob(decodeURIComponent(sharedData)));
                     document.getElementById('step1').style.display = 'none';
                     document.getElementById('step3').style.display = 'block';
                 } catch (e) {
+                    console.error('Error parsing share data:', e);
                     alert('Invalid share link');
                 }
             }
@@ -395,10 +411,6 @@
 
         document.getElementById('photoInput').addEventListener('change', handlePhotos);
         document.getElementById('photoInput2').addEventListener('change', handlePhotosB);
-
-        // Add video support to file inputs
-        document.getElementById('photoInput').setAttribute('accept', 'image/*,video/*');
-        document.getElementById('photoInput2').setAttribute('accept', 'image/*,video/*');
 
         function handlePhotos(e) {
             const files = e.target.files;
@@ -512,7 +524,6 @@
             const longUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
             
             try {
-                // Call is.gd API using JSONP to avoid CORS issues
                 const apiUrl = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
                 const response = await fetch(apiUrl);
                 const data = await response.json();
@@ -596,42 +607,6 @@
 
         function deg2rad(deg) {
             return deg * (Math.PI/180);
-        }
-
-        async function getLocationName(lat, lon) {
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`);
-                const data = await response.json();
-                
-                // Try to get the most specific location name
-                if (data.address) {
-                    // Prioritize: venue/building > neighborhood > city
-                    const name = data.address.tourism || 
-                                data.address.amenity || 
-                                data.address.building ||
-                                data.address.shop ||
-                                data.address.neighbourhood ||
-                                data.address.suburb ||
-                                data.address.city ||
-                                data.address.town ||
-                                data.address.village;
-                    
-                    if (name) {
-                        // Add city/state for context if we have a specific venue
-                        if (data.address.tourism || data.address.amenity) {
-                            const city = data.address.city || data.address.town;
-                            return city ? `${name}, ${city}` : name;
-                        }
-                        return name;
-                    }
-                }
-                
-                // Fallback to display name
-                return data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : 'the same location';
-            } catch (error) {
-                console.error('Error fetching location name:', error);
-                return 'the same location';
-            }
         }
 
         async function displayMatches(matches) {
@@ -720,7 +695,6 @@
             
             // Encode match results
             const resultsData = window.currentMatches.map(m => ({
-                locationName: m.locationName,
                 date: m.date,
                 distance: m.distance,
                 lat: m.lat,
@@ -755,25 +729,22 @@
             } catch (error) {
                 console.error('Error creating share link:', error);
                 shareButton.disabled = false;
-                shareButton.textContent = 'Share results with your friend';
+                shareButton.textContent = 'Share these results with your friend';
                 alert('Error creating share link. Please try again.');
             }
         }
 
-                function copyResultsLink(url) {
+        function copyResultsLink(url) {
             navigator.clipboard.writeText(url).then(() => {
                 alert('Link copied to clipboard!');
             }).catch(() => {
-                // Fallback for browsers that don't support clipboard API
                 alert('Please manually copy the link above');
             });
         }
 
         function goHome() {
-            // Remove URL parameters and reload to home state
             window.location.href = window.location.origin + window.location.pathname;
         }
-    
 
         function displaySharedResults(matches) {
             document.getElementById('step1').style.display = 'none';
