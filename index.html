@@ -82,19 +82,33 @@
         }
 
         .upload-zone {
-            border: 2px dashed #000;
-            border-radius: 8px;
-            padding: 40px;
+            border: 1px dashed #ccc;
+            border-radius: 6px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             margin: 20px 0;
             background: #fafafa;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .upload-zone:hover {
             background: #f0f0f0;
-            border-color: #333;
+            border-color: #999;
+        }
+
+        .upload-text {
+            font-size: 0.9em;
+            color: #333;
+        }
+
+        .upload-subtext {
+            font-size: 0.75em;
+            color: #999;
+            margin-top: 6px;
         }
 
         input[type="file"] {
@@ -296,9 +310,8 @@
                 <p style="margin: 15px 0; color: #666;">Select photos from your library. We'll extract location data to find matching moments.</p>
                 
                 <div class="upload-zone" onclick="document.getElementById('photoInput').click()">
-                    <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
-                    <div>Click to select photos</div>
-                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">Your data stays in your browser - nothing is uploaded to servers</div>
+                    <div class="upload-text">Click to select photos</div>
+                    <div class="upload-subtext">Your data stays private, on your device</div>
                 </div>
                 
                 <input type="file" id="photoInput" accept="image/*" multiple>
@@ -328,9 +341,8 @@
                 <p style="margin: 15px 0; color: #666;">Upload your photos to see if you've crossed paths before.</p>
                 
                 <div class="upload-zone" onclick="document.getElementById('photoInput2').click()">
-                    <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
-                    <div>Click to select your photos</div>
-                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">Your photos stay private - they're never shared</div>
+                    <div class="upload-text">Click to select your photos</div>
+                    <div class="upload-subtext">Your photos stay private</div>
                 </div>
                 
                 <input type="file" id="photoInput2" accept="image/*" multiple>
